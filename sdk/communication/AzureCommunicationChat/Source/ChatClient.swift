@@ -106,6 +106,59 @@ public class ChatClient {
 
         self.service = client.chat
     }
+    
+    public init(
+        endpoint: String,
+        auth: Authenticating,
+        withOptions userOptions: AzureCommunicationChatClientOptions
+    ) throws {
+        self.endpoint = endpoint
+        self.credential = credential
+        self.registrationId = UUID().uuidString
+
+        guard let endpointUrl = URL(string: endpoint) else {
+            throw AzureError.client("Unable to form base URL.")
+        }
+
+        // If applicationId is not provided bundle identifier will be used
+        // Instead set the default application id to be an empty string
+        var options: AzureCommunicationChatClientOptions = userOptions
+        if userOptions.telemetryOptions.applicationId == nil {
+            let apiVersion = AzureCommunicationChatClientOptions.ApiVersion(userOptions.apiVersion)
+            let telemetryOptions = TelemetryOptions(
+                telemetryDisabled: userOptions.telemetryOptions.telemetryDisabled,
+                applicationId: ""
+            )
+
+            options = AzureCommunicationChatClientOptions(
+                apiVersion: apiVersion,
+                logger: userOptions.logger,
+                telemetryOptions: telemetryOptions,
+                transportOptions: userOptions.transportOptions,
+                dispatchQueue: userOptions.dispatchQueue,
+                signalingErrorHandler: userOptions.signalingErrorHandler
+            )
+        }
+
+        self.options = options
+
+        // Internal options do not use the CommunicationSignalingErrorHandler
+        let internalOptions = AzureCommunicationChatClientOptionsInternal(
+            apiVersion: AzureCommunicationChatClientOptionsInternal.ApiVersion(options.apiVersion),
+            logger: options.logger,
+            telemetryOptions: options.telemetryOptions,
+            transportOptions: options.transportOptions,
+            dispatchQueue: options.dispatchQueue
+        )
+
+        let client = try ChatClientInternal(
+            endpoint: endpointUrl,
+            authPolicy: auth,
+            withOptions: internalOptions
+        )
+
+        self.service = client.chat
+    }
 
     // MARK: Private Methods
 
